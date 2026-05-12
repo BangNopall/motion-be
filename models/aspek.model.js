@@ -1,4 +1,3 @@
-const fetch = require("node-fetch");
 const supabase = require("../constants/config");
 
 const aspek = {
@@ -29,26 +28,27 @@ const aspek = {
 	},
 
 	getAspekByCol: async ({ column, value }) => {
-		try {
-			const params = ["id_aspek"].includes(column)
-				? `${column}=eq.${value}`
-				: `${column}=ilike.%25${value}%25`;
-			let res = await fetch(
-				`${process.env.SUPABASE_URL}/motion_aspek?select=*&order=id_aspek.asc&${params}`,
-				{
-					method: "GET",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${process.env.SUPABASE_API_KEY}`,
-						apikey: process.env.SUPABASE_API_KEY,
-					},
-				}
-			);
-			let json = await res.json();
-			return { status: "ok", data: json };
-		} catch (err) {
-			return { status: "err", msg: err };
+		const allowedColumns = ["id_aspek", "aspek", "indikator", "id_jabatan"];
+		if (!allowedColumns.includes(column)) {
+			return { status: "err", msg: "invalid column" };
 		}
+
+		const query = supabase
+			.from("motion24_aspekPenilaian")
+			.select(
+				"*, sub_aspek:motion24_detailAspek(id_subaspek, sub_aspek, deskripsi), jabatan:motion24_jabatan(jabatan)"
+			)
+			.order("id_aspek", { ascending: true });
+
+		const { data, error } =
+			column === "id_aspek" || column === "id_jabatan"
+				? await query.eq(column, value)
+				: await query.ilike(column, `%${value}%`);
+
+		if (error) {
+			return { status: "err", msg: error };
+		}
+		return { status: "ok", data };
 	},
 	addAspek: async (data) => {
 		const { error } = await supabase.from("motion24_aspek").insert(data);

@@ -160,7 +160,7 @@ const rapor = {
 			let dataNilai = [];
 			nilai.forEach((item) => {
 				dataNilai.push({
-					id_rapor: id_rapor[0].id_rapor,
+					id_rapor: id,
 					id_subaspek: item.id_subaspek,
 					nilai: item.nilai,
 				});
@@ -176,9 +176,10 @@ const rapor = {
 		return { status: "ok", msg: "success edit rapor" };
 	},
 	deleteRapor: async ({ id }) => {
-		const { error } = await Promise.all([
-			supabase.from("motion24_rapor").delete().match({ id_rapor: id }),
-		]);
+		const { error } = await supabase
+			.from("motion24_rapor")
+			.delete()
+			.match({ id_rapor: id });
 		if (error) {
 			return { status: "err", msg: error };
 		}

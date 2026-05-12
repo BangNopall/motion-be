@@ -136,10 +136,10 @@ const user = {
 			(item) => item.status === true
 		).length;
 		const totalKegiatan = dataAbsensi.length;
-		const persentaseKehadiran = (
-			(totalKehadiran / totalKegiatan) *
-			100
-		).toFixed(2);
+		const persentaseKehadiran =
+			totalKegiatan === 0
+				? "0.00"
+				: ((totalKehadiran / totalKegiatan) * 100).toFixed(2);
 		return {
 			status: "ok",
 			data: {
@@ -153,7 +153,9 @@ const user = {
 	},
 	login: async ({ nim, password }) => {
 		try {
-			const login = await fetch(`https://bemfilkom.ddns.net:8443/`, {
+			const authUrl =
+				process.env.EXTERNAL_AUTH_URL || "https://rest-api.bemfilkomub.cloud";
+			const login = await fetch(authUrl, {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
@@ -167,10 +169,10 @@ const user = {
 				.catch((err) => {
 					throw err;
 				});
-			if (!login.message === "successfully logged in") {
+			if (login.message !== "successfully logged in") {
 				return { status: "err", msg: login.message };
 			}
-			const { data, err } = await supabase
+			const { data, error } = await supabase
 				.from("motion24_anggotaBEM")
 				.select(
 					"nim,nama, proker:motion24_proker(id_proker, proker), jabatan:motion24_jabatan(jabatan, id_jabatan), kementerian:motion24_kementerian(kementerian,singkatan, id_kementerian)"
@@ -178,15 +180,15 @@ const user = {
 				.eq("nim", nim)
 				.single();
 
-			if (err) {
-				throw err;
+			if (error) {
+				throw error;
 			}
 
 			if (data) {
 				return {
 					status: "ok",
 					data: {
-						prodi: login.data.prodi,
+						prodi: login.data?.prodi,
 						token: login.token,
 						...data,
 					},
@@ -238,7 +240,9 @@ const user = {
 			return { status: "err", msg: error };
 		}
 		if (id_proker) {
-			prokerData = id_proker.split(",").map(Number);
+			const prokerData = Array.isArray(id_proker)
+				? id_proker.map(Number)
+				: id_proker.split(",").map(Number);
 			const { error } = await supabase.from("motion24_pjProker").insert(
 				prokerData.map((id) => ({
 					nim: data.nim,
@@ -254,7 +258,6 @@ const user = {
 	updateUser: async (data, { nim }) => {
 		const { id_proker } = data;
 		delete data.id_proker;
-		console.log(nim);
 		const { error } = await supabase
 			.from("motion24_anggotaBEM")
 			.update(data)
@@ -277,10 +280,13 @@ const user = {
 				}
 			}
 
+			const prokerData = Array.isArray(id_proker)
+				? id_proker.map(Number)
+				: id_proker.split(",").map(Number);
 			const { error } = await supabase
 				.from("motion24_pjProker")
 				.upsert(
-					id_proker.map((id) => ({
+					prokerData.map((id) => ({
 						nim,
 						id_proker: id,
 					}))
@@ -292,19 +298,22 @@ const user = {
 		}
 		return { status: "ok", msg: "success update user" };
 	},
-	deleteUser: async ({ nim }) => {
-		//delete storage
-		const { data } = await supabase
-			.from("motion24_anggotaBEM")
-			.select("kementerian:motion24_kementerian(singkatan), nama, foto")
-			.eq("nim", nim)
-			.single();
-		if (data.foto) {
-			const { data: dataFoto, error } = await supabase.storage
-				.from("motion24_bucket")
-				.remove([`${data.kementerian.singkatan}/${data.nama}`]);
-			if (error || dataFoto.length === 0) {
-				return { status: "err", msg: "Gagal menghapus foto!" };
+		deleteUser: async ({ nim }) => {
+			//delete storage
+			const { data } = await supabase
+				.from("motion24_anggotaBEM")
+				.select("kementerian:motion24_kementerian(singkatan), nama, foto")
+				.eq("nim", nim)
+				.single();
+			if (!data) {
+				return { status: "err", msg: "user not found" };
+			}
+			if (data.foto) {
+				const { data: dataFoto, error } = await supabase.storage
+					.from("motion24_bucket")
+					.remove([`${data.kementerian.singkatan}/${data.nama}`]);
+				if (error || dataFoto.length === 0) {
+					return { status: "err", msg: "Gagal menghapus foto!" };
 			}
 		}
 		const { error } = await supabase
@@ -316,17 +325,17 @@ const user = {
 		}
 		return { status: "ok", msg: "success delete user" };
 	},
-	isAdmin: async ({ nim }) => {
-		const { data, error } = await supabase
-			.from("motion24_anggotaBEM")
-			.select("id_kementerian, motion24_admin(nim)")
-			.eq("nim", `${nim}`);
+		isAdmin: async ({ nim }) => {
+			const { data, error } = await supabase
+				.from("motion24_anggotaBEM")
+				.select("id_kementerian, motion24_admin(nim)")
+				.eq("nim", `${nim}`);
 
-		const user = data[0];
-
-		if (error || !user) {
+		if (error || !data || data.length === 0) {
 			return { status: "err", data: { isAdmin: false } };
 		}
+
+		const user = data[0];
 
 		if (user.motion24_admin || user.id_kementerian === 2) {
 			return { status: "ok", data: { isAdmin: true } };
