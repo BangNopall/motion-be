@@ -35,7 +35,7 @@ const jabatan = {
 	},
 	getAspekByIdJabatan: async (id) => {
 		const { data, error } = await supabase
-			.from("motion24_aspekPenilaian")
+			.from("motion24_aspek")
 			.select("*, sub_aspek:motion24_detailAspek(id_subaspek, sub_aspek, deskripsi)")
 			.eq("id_jabatan", id)
 			.order("id_aspek", { ascending: true });

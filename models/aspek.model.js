@@ -3,7 +3,7 @@ const supabase = require("../constants/config");
 const aspek = {
 	getAllAspek: async () => {
 		const { data, error } = await supabase
-			.from("motion24_aspekPenilaian")
+			.from("motion24_aspek")
 			.select(
 				"*, sub_aspek:motion24_detailAspek(id_subaspek, sub_aspek, deskripsi), jabatan:motion24_jabatan(jabatan)"
 			)
@@ -15,7 +15,7 @@ const aspek = {
 	},
 	getAspekById: async (id) => {
 		const { data, error } = await supabase
-			.from("motion24_aspekPenilaian")
+			.from("motion24_aspek")
 			.select(
 				"*, sub_aspek:motion24_detailAspek(id_subaspek, sub_aspek, deskripsi), jabatan:motion24_jabatan(jabatan)"
 			)
@@ -34,7 +34,7 @@ const aspek = {
 		}
 
 		const query = supabase
-			.from("motion24_aspekPenilaian")
+			.from("motion24_aspek")
 			.select(
 				"*, sub_aspek:motion24_detailAspek(id_subaspek, sub_aspek, deskripsi), jabatan:motion24_jabatan(jabatan)"
 			)

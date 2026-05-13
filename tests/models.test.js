@@ -97,6 +97,122 @@ test("login returns Supabase query errors", async () => {
 	}
 });
 
+test("login accepts successful upstream auth responses without legacy message", async () => {
+	const fetch = async () => ({
+		json: async () => ({
+			success: true,
+			data: { prodi: "Teknik Informatika", token: "nested-token" },
+		}),
+	});
+	const supabase = {
+		from() {
+			return {
+				select() {
+					return this;
+				},
+				eq() {
+					return this;
+				},
+				async single() {
+					return {
+						data: {
+							nim: "123",
+							nama: "Anggota Test",
+							jabatan: { id_jabatan: 1, jabatan: "Staff" },
+							kementerian: { id_kementerian: 1, kementerian: "Test" },
+						},
+						error: null,
+					};
+				},
+			};
+		},
+	};
+	const { module: user, restore } = loadWithMocks("../models/user.model", {
+		"../constants/config": supabase,
+		"node-fetch": fetch,
+	});
+
+	try {
+		const result = await user.login({ nim: "123", password: "secret" });
+
+		assert.equal(result.status, "ok");
+		assert.equal(result.data.token, "nested-token");
+		assert.equal(result.data.prodi, "Teknik Informatika");
+		assert.equal(result.data.nim, "123");
+	} finally {
+		restore();
+	}
+});
+
+test("login returns not bem member when Supabase finds no matching user", async () => {
+	const fetch = async () => ({
+		json: async () => ({
+			success: true,
+			data: { prodi: "Teknik Komputer" },
+			token: "external-token",
+		}),
+	});
+	const supabase = {
+		from() {
+			return {
+				select() {
+					return this;
+				},
+				eq() {
+					return this;
+				},
+				async single() {
+					return {
+						data: null,
+						error: {
+							code: "PGRST116",
+							message: "Cannot coerce the result to a single JSON object",
+							details: "The result contains 0 rows",
+						},
+					};
+				},
+			};
+		},
+	};
+	const { module: user, restore } = loadWithMocks("../models/user.model", {
+		"../constants/config": supabase,
+		"node-fetch": fetch,
+	});
+
+	try {
+		const result = await user.login({ nim: "245150307111006", password: "secret" });
+
+		assert.equal(result.status, "err");
+		assert.equal(result.msg, "not bem member");
+	} finally {
+		restore();
+	}
+});
+
+test("login returns a fallback message when upstream auth omits error text", async () => {
+	const fetch = async () => ({
+		json: async () => ({ success: false }),
+	});
+	const supabase = {
+		from() {
+			throw new Error("Supabase should not be queried after failed auth");
+		},
+	};
+	const { module: user, restore } = loadWithMocks("../models/user.model", {
+		"../constants/config": supabase,
+		"node-fetch": fetch,
+	});
+
+	try {
+		const result = await user.login({ nim: "123", password: "wrong" });
+
+		assert.equal(result.status, "err");
+		assert.equal(result.msg, "login failed");
+	} finally {
+		restore();
+	}
+});
+
 test("editRapor stores nilai rows with the route rapor id", async () => {
 	const writes = [];
 	const supabase = {

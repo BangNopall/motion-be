@@ -49,7 +49,7 @@ const user = {
 		const { data, error } = await supabase
 			.from("motion24_rapor")
 			.select(
-				"*, user:motion24_anggotaBEM(nama, foto, proker:motion24_proker(id_proker, proker), jabatan:motion24_jabatan(id_jabatan, jabatan), kementerian:motion24_kementerian(kementerian,singkatan, id_kementerian)) , detail:motion24_transparansi(catatan_transparansi,id_aspek, aspek:motion24_aspekPenilaian(aspek,indikator, sub_aspek:motion24_detailAspek(sub_aspek, deskripsi, nilai:motion24_nilai(nilai))))"
+				"*, user:motion24_anggotaBEM(nama, foto, proker:motion24_proker(id_proker, proker), jabatan:motion24_jabatan(id_jabatan, jabatan), kementerian:motion24_kementerian(kementerian,singkatan, id_kementerian)) , detail:motion24_transparansi(catatan_transparansi,id_aspek, aspek:motion24_aspek(aspek,indikator, sub_aspek:motion24_detailAspek(sub_aspek, deskripsi, nilai:motion24_nilai(nilai))))"
 			)
 			.eq("nim", nim)
 			.order("id_rapor", { ascending: true });
@@ -62,7 +62,7 @@ const user = {
 		const { data, error } = await supabase
 			.from("motion24_rapor")
 			.select(
-				"*, user:motion24_anggotaBEM(nama, foto, proker:motion24_proker(id_proker, proker), jabatan:motion24_jabatan(id_jabatan, jabatan), kementerian:motion24_kementerian(kementerian,singkatan, id_kementerian)) , detail:motion24_transparansi(catatan_transparansi,id_aspek, aspek:motion24_aspekPenilaian(aspek,indikator, sub_aspek:motion24_detailAspek(sub_aspek, deskripsi, nilai:motion24_nilai(id_rapor, nilai))))"
+				"*, user:motion24_anggotaBEM(nama, foto, proker:motion24_proker(id_proker, proker), jabatan:motion24_jabatan(id_jabatan, jabatan), kementerian:motion24_kementerian(kementerian,singkatan, id_kementerian)) , detail:motion24_transparansi(catatan_transparansi,id_aspek, aspek:motion24_aspek(aspek,indikator, sub_aspek:motion24_detailAspek(sub_aspek, deskripsi, nilai:motion24_nilai(id_rapor, nilai))))"
 			)
 			.eq("nim", nim)
 			.eq("rapor_ke", turn)
@@ -154,7 +154,7 @@ const user = {
 	login: async ({ nim, password }) => {
 		try {
 			const authUrl =
-				process.env.EXTERNAL_AUTH_URL || "https://rest-api.bemfilkomub.cloud";
+				process.env.EXTERNAL_AUTH_URL || "https://rest-api.bemfilkomub.cloud/auth";
 			const login = await fetch(authUrl, {
 				method: "POST",
 				headers: {
@@ -169,8 +169,13 @@ const user = {
 				.catch((err) => {
 					throw err;
 				});
-			if (login.message !== "successfully logged in") {
-				return { status: "err", msg: login.message };
+			const isAuthenticated =
+				login.success === true
+			if (!isAuthenticated) {
+				return {
+					status: "err",
+					msg: login.message || login.error || login.msg || "login failed",
+				};
 			}
 			const { data, error } = await supabase
 				.from("motion24_anggotaBEM")
@@ -179,6 +184,10 @@ const user = {
 				)
 				.eq("nim", nim)
 				.single();
+
+			if (error?.code === "PGRST116") {
+				return { status: "err", msg: "not bem member" };
+			}
 
 			if (error) {
 				throw error;
@@ -189,7 +198,7 @@ const user = {
 					status: "ok",
 					data: {
 						prodi: login.data?.prodi,
-						token: login.token,
+						token: login.token || login.data?.token,
 						...data,
 					},
 				};
