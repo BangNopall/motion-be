@@ -1,5 +1,10 @@
 const supabase = require("../constants/config");
 const fetch = require("node-fetch");
+const { generateToken } = require("../constants/jwt");
+const {
+	calculateCommitmentScore,
+	normalizeAttendanceStatus,
+} = require("../constants/attendance");
 
 const user = {
 	getAllUser: async () => {
@@ -49,7 +54,7 @@ const user = {
 		const { data, error } = await supabase
 			.from("motion24_rapor")
 			.select(
-				"*, user:motion24_anggotaBEM(nama, foto, proker:motion24_proker(id_proker, proker), jabatan:motion24_jabatan(id_jabatan, jabatan), kementerian:motion24_kementerian(kementerian,singkatan, id_kementerian)) , detail:motion24_transparansi(catatan_transparansi,id_aspek, aspek:motion24_aspek(aspek,indikator, sub_aspek:motion24_detailAspek(sub_aspek, deskripsi, nilai:motion24_nilai(nilai))))"
+				"*, user:motion24_anggotaBEM(nama, foto, proker:motion24_proker(id_proker, proker), jabatan:motion24_jabatan(id_jabatan, jabatan), kementerian:motion24_kementerian(kementerian,singkatan, id_kementerian)) , detail:motion24_nilai(id_subaspek, nilai, sub_aspek:motion24_detailAspek(sub_aspek, id_aspek, aspek:motion24_aspek(aspek)))"
 			)
 			.eq("nim", nim)
 			.order("id_rapor", { ascending: true });
@@ -62,7 +67,7 @@ const user = {
 		const { data, error } = await supabase
 			.from("motion24_rapor")
 			.select(
-				"*, user:motion24_anggotaBEM(nama, foto, proker:motion24_proker(id_proker, proker), jabatan:motion24_jabatan(id_jabatan, jabatan), kementerian:motion24_kementerian(kementerian,singkatan, id_kementerian)) , detail:motion24_transparansi(catatan_transparansi,id_aspek, aspek:motion24_aspek(aspek,indikator, sub_aspek:motion24_detailAspek(sub_aspek, deskripsi, nilai:motion24_nilai(id_rapor, nilai))))"
+				"*, user:motion24_anggotaBEM(nama, foto, proker:motion24_proker(id_proker, proker), jabatan:motion24_jabatan(id_jabatan, jabatan), kementerian:motion24_kementerian(kementerian,singkatan, id_kementerian)) , detail:motion24_nilai(id_subaspek, nilai, sub_aspek:motion24_detailAspek(sub_aspek, deskripsi, id_aspek, aspek:motion24_aspek(aspek)))"
 			)
 			.eq("nim", nim)
 			.eq("rapor_ke", turn)
@@ -70,19 +75,6 @@ const user = {
 			.single();
 		if (error) {
 			return { status: "err", msg: error };
-		}
-		if (data && data.detail && data.detail.length > 0) {
-			console.log(data.id_rapor);
-			data.detail = data.detail.map(detail => ({
-				...detail,
-				aspek: {
-					...detail.aspek,
-					sub_aspek: detail.aspek.sub_aspek.map(sub_aspek => ({
-						...sub_aspek,
-						nilai: sub_aspek.nilai.filter(n => n.id_rapor === data.id_rapor)
-					}))
-				}
-			}));
 		}
 	
 		return { status: "ok", data };
@@ -93,26 +85,26 @@ const user = {
 		switch (Number(turn)) {
 			case 1:
 				tanggal = {
-					start: "2025-03-01",
-					end: "2025-05-31",
+					start: "2026-03-01",
+					end: "2026-05-31",
 				};
 				break;
 			case 2:
 				tanggal = {
-					start: "2025-06-1",
-					end: "2025-08-31",
+					start: "2026-06-1",
+					end: "2026-08-31",
 				};
 				break;
 			case 3:
 				tanggal = {
-					start: "2025-09-1",
-					end: "2025-11-30",
+					start: "2026-09-1",
+					end: "2026-11-30",
 				};
 				break;
 			default:
 				tanggal = {
-					start: "2025-01-01",
-					end: "2025-12-31",
+					start: "2026-01-01",
+					end: "2026-12-31",
 				};
 		}
 		const { data, error } = await supabase
@@ -132,22 +124,24 @@ const user = {
 			return { status: "err", msg: error };
 		}
 		const dataAbsensi = data.absensi.filter((item) => item.kegiatan !== null);
-		const totalKehadiran = dataAbsensi.filter(
-			(item) => item.status === true
+		const normalizedAbsensi = dataAbsensi.map((item) => ({
+			...item,
+			status: normalizeAttendanceStatus(item.status),
+		}));
+		const totalKehadiran = normalizedAbsensi.filter(
+			(item) => item.status === "hadir" || item.status === "surat_sakit"
 		).length;
 		const totalKegiatan = dataAbsensi.length;
-		const persentaseKehadiran =
-			totalKegiatan === 0
-				? "0.00"
-				: ((totalKehadiran / totalKegiatan) * 100).toFixed(2);
+		const commitmentScore = calculateCommitmentScore(normalizedAbsensi);
 		return {
 			status: "ok",
 			data: {
 				nim,
 				totalKegiatan,
 				totalKehadiran,
-				persentaseKehadiran,
-				dataAbsensi,
+				persentaseKehadiran: commitmentScore,
+				commitmentScore,
+				dataAbsensi: normalizedAbsensi,
 			},
 		};
 	},
@@ -170,7 +164,7 @@ const user = {
 					throw err;
 				});
 			const isAuthenticated =
-				login.success === true
+				login.success === true || login.message === "successfully logged in";
 			if (!isAuthenticated) {
 				return {
 					status: "err",
@@ -180,7 +174,7 @@ const user = {
 			const { data, error } = await supabase
 				.from("motion24_anggotaBEM")
 				.select(
-					"nim,nama, proker:motion24_proker(id_proker, proker), jabatan:motion24_jabatan(jabatan, id_jabatan), kementerian:motion24_kementerian(kementerian,singkatan, id_kementerian)"
+					"nim,nama, proker:motion24_proker(id_proker, proker), jabatan:motion24_jabatan(jabatan, id_jabatan), kementerian:motion24_kementerian(kementerian,singkatan, id_kementerian), motion24_admin(nim)"
 				)
 				.eq("nim", nim)
 				.single();
@@ -194,11 +188,18 @@ const user = {
 			}
 
 			if (data) {
+				const isAdmin =
+					Boolean(data.motion24_admin) || data.kementerian?.id_kementerian === 2;
+				const externalToken = login.token || login.data?.token;
+				const token = generateToken({ nim: data.nim, isAdmin });
+
 				return {
 					status: "ok",
 					data: {
 						prodi: login.data?.prodi,
-						token: login.token || login.data?.token,
+						token,
+						externalToken,
+						isAdmin,
 						...data,
 					},
 				};
@@ -264,9 +265,59 @@ const user = {
 		}
 		return { status: "ok", msg: "success add user" };
 	},
-	updateUser: async (data, { nim }) => {
+	updateUser: async (data, { nim }, file) => {
 		const { id_proker } = data;
 		delete data.id_proker;
+		if (file && file.size > 0) {
+			const { data: currentUser, error: errCurrentUser } = await supabase
+				.from("motion24_anggotaBEM")
+				.select("nama, foto, kementerian:motion24_kementerian(singkatan)")
+				.eq("nim", nim)
+				.single();
+			if (errCurrentUser || !currentUser) {
+				return { status: "err", msg: errCurrentUser || "user not found" };
+			}
+
+			let singkatan = currentUser.kementerian.singkatan;
+			if (data.id_kementerian) {
+				const { data: kementerian, error: errKementerian } = await supabase
+					.from("motion24_kementerian")
+					.select("singkatan")
+					.eq("id_kementerian", data.id_kementerian)
+					.single();
+				if (errKementerian || !kementerian) {
+					return { status: "err", msg: errKementerian || "kementerian not found" };
+				}
+				singkatan = kementerian.singkatan;
+			}
+
+			const oldPathname = `${currentUser.kementerian.singkatan}/${currentUser.nama}`;
+			const newPathname = `${singkatan}/${data.nama || currentUser.nama}`;
+			const { error: errUpload } = await supabase.storage
+				.from("motion24_bucket")
+				.upload(newPathname, file.buffer, {
+					cacheControl: "3600",
+					contentType: file.mimetype,
+					upsert: true,
+				});
+			if (errUpload) {
+				return { status: "err", msg: errUpload };
+			}
+
+			if (currentUser.foto && oldPathname !== newPathname) {
+				const { data: dataFoto, error: errRemove } = await supabase.storage
+					.from("motion24_bucket")
+					.remove([oldPathname]);
+				if (errRemove || !Array.isArray(dataFoto) || dataFoto.length === 0) {
+					return { status: "err", msg: errRemove || "Gagal menghapus foto lama!" };
+				}
+			}
+
+			const {
+				data: { publicUrl },
+			} = supabase.storage.from("motion24_bucket").getPublicUrl(newPathname);
+			data.foto = publicUrl;
+		}
 		const { error } = await supabase
 			.from("motion24_anggotaBEM")
 			.update(data)

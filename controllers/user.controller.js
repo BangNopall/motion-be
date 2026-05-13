@@ -120,7 +120,7 @@ const user = {
 	},
 	updateUser: async (req, res) => {
 		model
-			.updateUser(req.body, req.params)
+			.updateUser(req.body, req.params, req.file)
 			.then((result) => {
 				if (result.status == "ok") {
 					success(res, result.msg);

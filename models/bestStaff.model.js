@@ -5,22 +5,22 @@ const bestStaff = {
 		const { data, error } = await supabase
 			.from("motion24_bestStaff")
 			.select(
-				"id, month, nim, id_kementerian, staff:motion24_anggotaBEM(nim, nama, foto, kementerian:motion24_kementerian(*))"
+				"id, phase, nim, id_kementerian, staff:motion24_anggotaBEM(nim, nama, foto, kementerian:motion24_kementerian(*))"
 			)
-			.order("month", { ascending: true })
+			.order("phase", { ascending: true })
 			.order("id_kementerian", { ascending: true });
 		if (error) {
 			return { status: "err", msg: error };
 		}
 		return { status: "ok", data: data };
 	},
-	getBestStaffByMonth: async ({ month }) => {
+	getBestStaffByPhase: async ({ phase }) => {
 		const { data, error } = await supabase
 			.from("motion24_bestStaff")
 			.select(
-				"id, month, nim, id_kementerian, staff:motion24_anggotaBEM(nim, nama, foto, kementerian:motion24_kementerian(*))"
+				"id, phase, nim, id_kementerian, staff:motion24_anggotaBEM(nim, nama, foto, kementerian:motion24_kementerian(*))"
 			)
-			.eq("month", month)
+			.eq("phase", phase)
 			.order("id_kementerian", { ascending: true });
 		if (error) {
 			return { status: "err", msg: error };

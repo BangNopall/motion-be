@@ -1,6 +1,11 @@
 const express = require("express");
 const router = express.Router();
 const controller = require("../controllers/user.controller");
+const {
+	authenticate,
+	requireAdmin,
+	requireSelfOrAdmin,
+} = require("../middleware/auth.middleware");
 const multer = require("multer");
 const upload = multer({
     limits: {
@@ -14,12 +19,12 @@ router.get(
 	"/kementerian/:id_kementerian/jabatan/:id_jabatan",
 	controller.getUserByKementerianJabatan
 );
-router.get("/:nim/rapor", controller.getRaporByNim);
-router.get("/:nim/rapor/:turn", controller.getRaporByTurnNim);
-router.get("/:nim/absensi/:turn", controller.getAbsensiByTurnNim);
-router.post("/", upload.single("foto"), controller.addUser);
+router.get("/:nim/rapor", requireSelfOrAdmin("nim"), controller.getRaporByNim);
+router.get("/:nim/rapor/:turn", requireSelfOrAdmin("nim"), controller.getRaporByTurnNim);
+router.get("/:nim/absensi/:turn", requireSelfOrAdmin("nim"), controller.getAbsensiByTurnNim);
+router.post("/", requireAdmin, upload.single("foto"), controller.addUser);
 router.post("/login", controller.login);
-router.put("/:nim", controller.updateUser);
-router.delete("/:nim", controller.deleteUser);
+router.put("/:nim", requireAdmin, upload.single("foto"), controller.updateUser);
+router.delete("/:nim", requireAdmin, controller.deleteUser);
 
 module.exports = router;

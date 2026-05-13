@@ -28,7 +28,7 @@ const aspek = {
 	},
 
 	getAspekByCol: async ({ column, value }) => {
-		const allowedColumns = ["id_aspek", "aspek", "indikator", "id_jabatan"];
+		const allowedColumns = ["id_aspek", "aspek", "id_jabatan"];
 		if (!allowedColumns.includes(column)) {
 			return { status: "err", msg: "invalid column" };
 		}

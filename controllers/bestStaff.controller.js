@@ -16,9 +16,9 @@ const bestStaff = {
 				error(res, err);
 			});
 	},
-	getBestStaffByMonth: async (req, res) => {
+	getBestStaffByPhase: async (req, res) => {
 		model
-			.getBestStaffByMonth(req.params)
+			.getBestStaffByPhase(req.params)
 			.then((result) => {
 				if (result.status == "ok") {
 					success(res, result.data);

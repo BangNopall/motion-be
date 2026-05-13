@@ -1,4 +1,31 @@
 const supabase = require("../constants/config");
+const { normalizeAttendanceStatus } = require("../constants/attendance");
+
+const getRaporDateRange = (raporKe) => {
+	switch (Number(raporKe)) {
+		case 1:
+			return {
+				start: "2026-03-01",
+				end: "2026-05-31",
+			};
+		case 2:
+			return {
+				start: "2026-06-01",
+				end: "2026-08-31",
+			};
+		case 3:
+			return {
+				start: "2026-09-01",
+				end: "2026-11-30",
+			};
+		default:
+			return {
+				start: "2026-01-01",
+				end: "2026-12-31",
+			};
+	}
+};
+
 const rapor = {
 	getAllRapor: async () => {
 		const { data, error } = await supabase
@@ -13,7 +40,7 @@ const rapor = {
 		return { status: "ok", data };
 	},
 	addRapor: async (data) => {
-		const { kehadiran, detail_rapor, nilai } = data;
+		const { kehadiran, nilai } = data;
 		const { data: id_rapor, error: errRapor } = await supabase
 			.from("motion24_rapor")
 			.insert({
@@ -28,36 +55,20 @@ const rapor = {
 		if (errRapor) {
 			return { status: "err", msg: errRapor };
 		}
-		if (kehadiran) {
-			let dataKehadiran = [];
-			kehadiran.forEach((item) => {
-				dataKehadiran.push({
-					id_kegiatan: item.id_kegiatan,
-					nim: data.nim,
-					status: item.status,
+			if (kehadiran) {
+				let dataKehadiran = [];
+				kehadiran.forEach((item) => {
+					dataKehadiran.push({
+						id_kegiatan: item.id_kegiatan,
+						nim: data.nim,
+						status: normalizeAttendanceStatus(item.status),
+					});
 				});
-			});
 			const { error: errKehadiran } = await supabase
 				.from("motion24_absensi")
 				.upsert(dataKehadiran);
 			if (errKehadiran) {
 				return { status: "err", msg: errKehadiran };
-			}
-		}
-		if (detail_rapor) {
-			let dataDetailRapor = [];
-			detail_rapor.forEach((item) => {
-				dataDetailRapor.push({
-					id_rapor: id_rapor[0].id_rapor,
-					id_aspek: item.id_aspek,
-					catatan_transparansi: item.transparansi,
-				});
-			});
-			const { error: errDetailRapor } = await supabase
-				.from("motion24_transparansi")
-				.upsert(dataDetailRapor);
-			if (errDetailRapor) {
-				return { status: "err", msg: errDetailRapor };
 			}
 		}
 		if (nilai) {
@@ -80,7 +91,7 @@ const rapor = {
 		return { status: "ok", msg: "success add rapor" };
 	},
 	editRapor: async ({ id }, data) => {
-		const { kehadiran, detail_rapor, nilai } = data;
+		const { kehadiran, nilai } = data;
 		const { error: errRapor } = await supabase
 			.from("motion24_rapor")
 			.update({
@@ -107,45 +118,20 @@ const rapor = {
 			}
 			//insert new data
 
-			let dataKehadiran = [];
-			kehadiran.forEach((item) => {
-				dataKehadiran.push({
-					id_kegiatan: item.id_kegiatan,
-					nim: data.nim,
-					status: item.status,
+				let dataKehadiran = [];
+				kehadiran.forEach((item) => {
+					dataKehadiran.push({
+						id_kegiatan: item.id_kegiatan,
+						nim: data.nim,
+						status: normalizeAttendanceStatus(item.status),
+					});
 				});
-			});
 			const { error: errKehadiran } = await supabase
 				.from("motion24_absensi")
 				.upsert(dataKehadiran);
 			if (errKehadiran) {
 				console.log("errKehadiran", errKehadiran);
 				return { status: "err", msg: errKehadiran };
-			}
-		}
-		if (detail_rapor) {
-			const { error: errDeleteTransparansi } = await supabase
-				.from("motion24_transparansi")
-				.delete()
-				.eq("id_rapor", id);
-			if (errDeleteTransparansi) {
-				console.log("errDeleteTransparansi", errDeleteTransparansi);
-				return { status: "err", msg: errDeleteTransparansi };
-			}
-			let dataDetailRapor = [];
-			detail_rapor.forEach((item) => {
-				dataDetailRapor.push({
-					id_rapor: id,
-					id_aspek: item.id_aspek,
-					catatan_transparansi: item.transparansi,
-				});
-			});
-			const { error: errDetailRapor } = await supabase
-				.from("motion24_transparansi")
-				.upsert(dataDetailRapor);
-			if (errDetailRapor) {
-				console.log("errDetailRapor", errDetailRapor);
-				return { status: "err", msg: errDetailRapor };
 			}
 		}
 		if (nilai) {
@@ -176,6 +162,39 @@ const rapor = {
 		return { status: "ok", msg: "success edit rapor" };
 	},
 	deleteRapor: async ({ id }) => {
+		const { data: raporData, error: errGetRapor } = await supabase
+			.from("motion24_rapor")
+			.select("nim, rapor_ke")
+			.eq("id_rapor", id)
+			.single();
+		if (errGetRapor) {
+			return { status: "err", msg: errGetRapor };
+		}
+
+		const tanggal = getRaporDateRange(raporData.rapor_ke);
+		const { data: kegiatanData, error: errKegiatan } = await supabase
+			.from("motion24_kegiatan")
+			.select("id_kegiatan")
+			.gte("tanggal", tanggal.start)
+			.lte("tanggal", tanggal.end);
+		if (errKegiatan) {
+			return { status: "err", msg: errKegiatan };
+		}
+
+		const idKegiatan = (Array.isArray(kegiatanData) ? kegiatanData : [])
+			.map((item) => item.id_kegiatan)
+			.filter(Boolean);
+		if (idKegiatan.length > 0) {
+			const { error: errDeleteKehadiran } = await supabase
+				.from("motion24_absensi")
+				.delete()
+				.eq("nim", raporData.nim)
+				.in("id_kegiatan", idKegiatan);
+			if (errDeleteKehadiran) {
+				return { status: "err", msg: errDeleteKehadiran };
+			}
+		}
+
 		const { error } = await supabase
 			.from("motion24_rapor")
 			.delete()
