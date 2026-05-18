@@ -5,7 +5,7 @@ const getRaporDateRange = (raporKe) => {
 	switch (Number(raporKe)) {
 		case 1:
 			return {
-				start: "2026-03-01",
+				start: "2026-01-01",
 				end: "2026-05-31",
 			};
 		case 2:

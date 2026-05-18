@@ -51,7 +51,7 @@ const kementerian = {
 		switch (Number(turn)) {
 			case 1:
 				tanggal = {
-					start: "2026-03-01",
+					start: "2026-01-01",
 					end: "2026-05-31",
 				};
 				break;
