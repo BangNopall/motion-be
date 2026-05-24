@@ -41,12 +41,14 @@ const rapor = {
 	},
 	addRapor: async (data) => {
 		const { kehadiran, nilai } = data;
+		console.log(data)
 		const { data: id_rapor, error: errRapor } = await supabase
 			.from("motion24_rapor")
 			.insert({
 				rapor_ke: data.rapor_ke,
 				hobi: data.hobi,
 				kesimpulan_diri: data.kesimpulan_diri,
+				feedback_c_level: data.feedback_c_level,
 				keterangan_absen: data.keterangan_absen,
 				motivasi: data.motivasi,
 				nim: data.nim,
@@ -98,6 +100,7 @@ const rapor = {
 				rapor_ke: data.rapor_ke,
 				hobi: data.hobi,
 				kesimpulan_diri: data.kesimpulan_diri,
+				feedback_c_level: data.feedback_c_level,
 				keterangan_absen: data.keterangan_absen,
 				motivasi: data.motivasi,
 				nim: data.nim,

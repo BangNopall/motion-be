@@ -66,6 +66,7 @@ create table if not exists public.motion24_rapor (
 	rapor_ke integer not null,
 	hobi text,
 	kesimpulan_diri text,
+	feedback_c_level text,
 	keterangan_absen text,
 	motivasi text,
 	nim text not null references public."motion24_anggotaBEM"(nim) on update cascade on delete cascade,

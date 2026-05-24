@@ -486,6 +486,7 @@ test("editRapor stores nilai rows with the route rapor id", async () => {
 				rapor_ke: 1,
 				hobi: "Membaca",
 				kesimpulan_diri: "Baik",
+				feedback_c_level: "Perlu lebih aktif memberi insight ke anggota IRE",
 				keterangan_absen: "-",
 				motivasi: "Semangat",
 				nim: "123",
@@ -494,6 +495,19 @@ test("editRapor stores nilai rows with the route rapor id", async () => {
 		);
 
 		assert.equal(result.status, "ok");
+		assert.deepEqual(
+			writes.find((write) => write.table === "motion24_rapor" && write.action === "update")
+				.payload,
+			{
+				rapor_ke: 1,
+				hobi: "Membaca",
+				kesimpulan_diri: "Baik",
+				feedback_c_level: "Perlu lebih aktif memberi insight ke anggota IRE",
+				keterangan_absen: "-",
+				motivasi: "Semangat",
+				nim: "123",
+			}
+		);
 		assert.deepEqual(
 			writes.find((write) => write.table === "motion24_nilai" && write.action === "upsert")
 				.payload,
@@ -541,6 +555,7 @@ test("addRapor stores child rows with the inserted rapor id", async () => {
 			rapor_ke: 1,
 			hobi: "Membaca",
 			kesimpulan_diri: "Baik",
+			feedback_c_level: "Sudah mulai konsisten memantik refleksi tim",
 			keterangan_absen: "-",
 			motivasi: "Semangat",
 			nim: "123",
@@ -548,6 +563,19 @@ test("addRapor stores child rows with the inserted rapor id", async () => {
 		});
 
 		assert.equal(result.status, "ok");
+		assert.deepEqual(
+			writes.find((write) => write.table === "motion24_rapor" && write.action === "insert")
+				.payload,
+			{
+				rapor_ke: 1,
+				hobi: "Membaca",
+				kesimpulan_diri: "Baik",
+				feedback_c_level: "Sudah mulai konsisten memantik refleksi tim",
+				keterangan_absen: "-",
+				motivasi: "Semangat",
+				nim: "123",
+			}
+		);
 		assert.deepEqual(
 			writes.find((write) => write.table === "motion24_nilai" && write.action === "upsert")
 				.payload,

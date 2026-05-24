@@ -106,6 +106,7 @@ Admin menginput nilai melalui endpoint rapor.
     "nim": "245150307111006",
     "rapor_ke": 1,
     "hobi": "Membaca",
+    "feedback_c_level": "Feedback C-Level untuk anggota IRE",
     "motivasi": "Semangat terus",
     "nilai": [
       { "id_subaspek": 1, "nilai": 85.5 },
