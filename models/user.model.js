@@ -148,7 +148,7 @@ const user = {
 	login: async ({ nim, password }) => {
 		try {
 			const authUrl =
-				process.env.EXTERNAL_AUTH_URL || "https://rest-api.bemfilkomub.cloud/auth";
+				process.env.EXTERNAL_AUTH_URL;
 			const login = await fetch(authUrl, {
 				method: "POST",
 				headers: {
