@@ -52,19 +52,19 @@ const kementerian = {
 			case 1:
 				tanggal = {
 					start: "2026-01-01",
-					end: "2026-05-31",
+					end: "2026-05-30",
 				};
 				break;
 			case 2:
 				tanggal = {
-					start: "2026-06-1",
-					end: "2026-08-31",
+					start: "2026-05-31",
+					end: "2026-08-08",
 				};
 				break;
 			case 3:
 				tanggal = {
-					start: "2026-09-1",
-					end: "2026-11-30",
+					start: "2026-08-09",
+					end: "2026-11-29",
 				};
 				break;
 			default:
