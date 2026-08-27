@@ -11,11 +11,11 @@ const getRaporDateRange = (raporKe) => {
 		case 2:
 			return {
 				start: "2026-05-31",
-				end: "2026-08-08",
+				end: "2026-09-08",
 			};
 		case 3:
 			return {
-				start: "2026-08-09",
+				start: "2026-09-09",
 				end: "2026-11-30",
 			};
 		default:
