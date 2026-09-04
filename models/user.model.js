@@ -5,9 +5,14 @@ const {
 	calculateCommitmentScore,
 	normalizeAttendanceStatus,
 } = require("../constants/attendance");
+const cache = require("../helpers/cache");
 
 const user = {
 	getAllUser: async () => {
+		const cacheKey = "getAllUser";
+		const cachedData = cache.get(cacheKey);
+		if (cachedData) return { status: "ok", data: cachedData };
+
 		const { data, error } = await supabase
 			.from("motion24_anggotaBEM")
 			.select(
@@ -19,6 +24,7 @@ const user = {
 		if (error) {
 			return { status: "err", msg: error };
 		}
+		cache.set(cacheKey, data, 300); // 5 minutes cache
 		return { status: "ok", data };
 	},
 	getUserByNIM: async (nim) => {
@@ -54,7 +60,7 @@ const user = {
 		const { data, error } = await supabase
 			.from("motion24_rapor")
 			.select(
-				"*, user:motion24_anggotaBEM(nama, foto, proker:motion24_proker(id_proker, proker), jabatan:motion24_jabatan(id_jabatan, jabatan), kementerian:motion24_kementerian(kementerian,singkatan, id_kementerian)) , detail:motion24_nilai(id_subaspek, nilai, sub_aspek:motion24_detailAspek(sub_aspek, id_aspek, aspek:motion24_aspek(aspek)))"
+				"id_rapor, nim, rapor_ke, hobi, motivasi, feedback_c_level, keterangan_absen, id_jabatan, user:motion24_anggotaBEM(nama, foto, proker:motion24_proker(id_proker, proker), jabatan:motion24_jabatan(id_jabatan, jabatan), kementerian:motion24_kementerian(kementerian,singkatan, id_kementerian)) , detail:motion24_nilai(id_subaspek, nilai, sub_aspek:motion24_detailAspek(sub_aspek, id_aspek, aspek:motion24_aspek(aspek)))"
 			)
 			.eq("nim", nim)
 			.order("id_rapor", { ascending: true });
@@ -64,10 +70,14 @@ const user = {
 		return { status: "ok", data };
 	},
 	getRaporByTurnNim: async ({ nim, turn }) => {
+		const cacheKey = `rapor_${nim}_${turn}`;
+		const cachedData = cache.get(cacheKey);
+		if (cachedData) return { status: "ok", data: cachedData };
+
 		const { data, error } = await supabase
 			.from("motion24_rapor")
 			.select(
-				"*, user:motion24_anggotaBEM(nama, foto, proker:motion24_proker(id_proker, proker), jabatan:motion24_jabatan(id_jabatan, jabatan), kementerian:motion24_kementerian(kementerian,singkatan, id_kementerian)) , detail:motion24_nilai(id_subaspek, nilai, sub_aspek:motion24_detailAspek(sub_aspek, deskripsi, id_aspek, aspek:motion24_aspek(aspek)))"
+				"id_rapor, nim, rapor_ke, hobi, motivasi, feedback_c_level, keterangan_absen, id_jabatan, user:motion24_anggotaBEM(nama, foto, proker:motion24_proker(id_proker, proker), jabatan:motion24_jabatan(id_jabatan, jabatan), kementerian:motion24_kementerian(kementerian,singkatan, id_kementerian)) , detail:motion24_nilai(id_subaspek, nilai, sub_aspek:motion24_detailAspek(sub_aspek, deskripsi, id_aspek, aspek:motion24_aspek(aspek)))"
 			)
 			.eq("nim", nim)
 			.eq("rapor_ke", turn)
@@ -77,9 +87,14 @@ const user = {
 			return { status: "err", msg: error };
 		}
 	
+		cache.set(cacheKey, data, 300); // 5 minutes cache
 		return { status: "ok", data };
 	},
 	getAbsensiByTurnNim: async ({ nim, turn }) => {
+		const cacheKey = `absensi_${nim}_${turn}`;
+		const cachedData = cache.get(cacheKey);
+		if (cachedData) return { status: "ok", data: cachedData };
+
 		//get count of kegiatan where tanggal between start and end
 		let tanggal = null;
 		switch (Number(turn)) {
@@ -133,16 +148,21 @@ const user = {
 		).length;
 		const totalKegiatan = dataAbsensi.length;
 		const commitmentScore = calculateCommitmentScore(normalizedAbsensi);
+		
+		const responseData = {
+			nim,
+			totalKegiatan,
+			totalKehadiran,
+			persentaseKehadiran: commitmentScore,
+			commitmentScore,
+			dataAbsensi: normalizedAbsensi,
+		};
+		
+		cache.set(cacheKey, responseData, 300); // 5 minutes cache
+		
 		return {
 			status: "ok",
-			data: {
-				nim,
-				totalKegiatan,
-				totalKehadiran,
-				persentaseKehadiran: commitmentScore,
-				commitmentScore,
-				dataAbsensi: normalizedAbsensi,
-			},
+			data: responseData,
 		};
 	},
 	login: async ({ nim, password }) => {
@@ -264,6 +284,11 @@ const user = {
 				return { status: "err", msg: error };
 			}
 		}
+		
+		cache.clearPrefix("getAllUser");
+		cache.clearPrefix("rapor_");
+		cache.clearPrefix("absensi_");
+		
 		return { status: "ok", msg: "success add user" };
 	},
 	updateUser: async (data, { nim }, file) => {
@@ -357,6 +382,11 @@ const user = {
 				return { status: "err", msg: error };
 			}
 		}
+		
+		cache.clearPrefix("getAllUser");
+		cache.clearPrefix(`rapor_${nim}`);
+		cache.clearPrefix(`absensi_${nim}`);
+		
 		return { status: "ok", msg: "success update user" };
 	},
 		deleteUser: async ({ nim }) => {
@@ -384,6 +414,11 @@ const user = {
 		if (error) {
 			return { status: "err", msg: error };
 		}
+		
+		cache.clearPrefix("getAllUser");
+		cache.clearPrefix(`rapor_${nim}`);
+		cache.clearPrefix(`absensi_${nim}`);
+		
 		return { status: "ok", msg: "success delete user" };
 	},
 		isAdmin: async ({ nim }) => {

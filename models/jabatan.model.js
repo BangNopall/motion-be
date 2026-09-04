@@ -4,7 +4,7 @@ const jabatan = {
 	getAllJabatan: async () => {
 		const { data, error } = await supabase
 			.from("motion24_jabatan")
-			.select("*")
+			.select("id_jabatan, jabatan")
 			.order("id_jabatan", { ascending: true });
 		if (error) {
 			return { status: "err", msg: error };
@@ -14,7 +14,7 @@ const jabatan = {
 	getJabatanById: async (id) => {
 		const { data, error } = await supabase
 			.from("motion24_jabatan")
-			.select("*")
+			.select("id_jabatan, jabatan")
 			.eq("id_jabatan", id);
 		if (error) {
 			return { status: "err", msg: error };
@@ -36,7 +36,7 @@ const jabatan = {
 	getAspekByIdJabatan: async (id) => {
 		const { data, error } = await supabase
 			.from("motion24_aspek")
-			.select("*, sub_aspek:motion24_detailAspek(id_subaspek, sub_aspek, deskripsi)")
+			.select("id_aspek, aspek, indikator, id_jabatan, sub_aspek:motion24_detailAspek(id_subaspek, sub_aspek, deskripsi)")
 			.eq("id_jabatan", id)
 			.order("id_aspek", { ascending: true });
 		if (error) {
